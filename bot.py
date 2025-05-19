@@ -28,6 +28,7 @@ def get_peer_type_new(peer_id: int) -> str:
 
 utils.get_peer_type = get_peer_type_new
 
+
 class Bot(Client):
 
     def __init__(self):
@@ -59,22 +60,64 @@ class Bot(Client):
         await super().stop()
         logging.info("Bot stopped. Bye.")
 
+    # Keep this for bot internal iteration but *do not use for fetching history* in case of Bot
     async def iter_messages(
         self,
         chat_id: Union[int, str],
         limit: int,
         offset_id: int = 0,
     ) -> AsyncGenerator[types.Message, None]:
-        """
-        Iterate over chat messages starting from offset_id, returning up to limit messages.
-
-        :param chat_id: Unique identifier or username of the target chat.
-        :param limit: Number of messages to retrieve.
-        :param offset_id: Message ID to start from (messages older than offset_id).
-        :return: Async generator yielding Message objects.
-        """
         async for message in self.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
             yield message
 
-app = Bot()
-app.run()
+
+# Create a separate user client for methods bots cannot use like get_chat_history
+userbot = Client(
+    "user_session",  # This is the session name/file for the user account
+    api_id=API_ID,
+    api_hash=API_HASH,
+    workers=50,
+)
+
+
+async def start_userbot():
+    await userbot.start()
+    logging.info("Userbot started for fetching history and other user-only methods.")
+
+
+async def stop_userbot():
+    await userbot.stop()
+    logging.info("Userbot stopped.")
+
+
+# Example helper function to fetch messages using userbot
+async def get_history_with_userbot(chat_id: Union[int, str], limit: int, offset_id: int = 0):
+    messages = []
+    async for msg in userbot.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
+        messages.append(msg)
+    return messages
+
+
+# Start both clients and run bot
+bot_app = Bot()
+
+
+async def main():
+    await bot_app.start()
+    await start_userbot()
+    # Now both bot and userbot are running
+
+    # Example: fetch history with userbot (you can replace this with your code)
+    # msgs = await get_history_with_userbot(chat_id=12345, limit=10)
+    # print(f"Fetched {len(msgs)} messages from userbot")
+
+    # Run your bot idle here or other logic
+    await bot_app.idle()
+
+    await stop_userbot()
+    await bot_app.stop()
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
