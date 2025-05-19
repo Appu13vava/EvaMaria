@@ -1,21 +1,17 @@
 FROM python:3.10-slim-buster
 
-# Install system packages and Python dependencies
-RUN apt update && apt upgrade -y && \
-    apt install git -y && \
-    pip3 install --upgrade pip
+# Update and install git
+RUN apt update && apt upgrade -y && apt install -y git
 
-# Copy and install Python dependencies
-COPY requirements.txt /requirements.txt
-RUN pip3 install -r /requirements.txt
-
-# Copy bot code and entrypoint
-RUN mkdir /EvaMaria
+# Set work directory and copy everything
 WORKDIR /EvaMaria
-COPY . /EvaMaria
-RUN chmod +x /start.sh
+COPY . .
 
-# Expose port 8080 for Koyeb's TCP health check
-EXPOSE 8080
+# Make the start.sh script executable
+RUN chmod +x start.sh
 
-CMD ["/bin/bash", "/start.sh"]
+# Install Python requirements
+RUN pip3 install -U pip && pip3 install -U -r requirements.txt
+
+# Set the startup command
+CMD ["./start.sh"]
