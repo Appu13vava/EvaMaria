@@ -2,7 +2,7 @@ FROM python:3.10-slim-buster
 
 # Update and install git
 RUN apt update && apt upgrade -y && apt install -y git
-
+RUN pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.29.zip --force-reinstall
 # Set work directory and copy everything
 WORKDIR /EvaMaria
 COPY . .
