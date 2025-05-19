@@ -7,19 +7,16 @@ logging.getLogger().setLevel(logging.INFO)
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
 logging.getLogger("imdbpy").setLevel(logging.ERROR)
 
-from pyrogram import Client, __version__
+from pyrogram import Client, __version__, types
 from pyrogram.raw.all import layer
+from pyrogram import utils
 from database.ia_filterdb import Media
 from database.users_chats_db import db
 from info import SESSION, API_ID, API_HASH, BOT_TOKEN, LOG_STR
 from utils import temp
 from typing import Union, AsyncGenerator
-from pyrogram import types
 
-
-
-from pyrogram import utils
-
+# Monkey-patch get_peer_type for newer Pyrogram behavior
 def get_peer_type_new(peer_id: int) -> str:
     peer_id_str = str(peer_id)
     if not peer_id_str.startswith("-"):
@@ -30,6 +27,7 @@ def get_peer_type_new(peer_id: int) -> str:
         return "chat"
 
 utils.get_peer_type = get_peer_type_new
+
 class Bot(Client):
 
     def __init__(self):
@@ -60,7 +58,7 @@ class Bot(Client):
     async def stop(self, *args):
         await super().stop()
         logging.info("Bot stopped. Bye.")
-    
+
     async def iter_messages(
         self,
         chat_id: Union[int, str],
@@ -75,9 +73,8 @@ class Bot(Client):
         :param offset_id: Message ID to start from (messages older than offset_id).
         :return: Async generator yielding Message objects.
         """
-        async for message in self.iter_history(chat_id, limit=limit, offset_id=offset_id):
+        async for message in self.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
             yield message
-
 
 app = Bot()
 app.run()
