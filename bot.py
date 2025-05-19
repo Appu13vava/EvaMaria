@@ -1,5 +1,6 @@
 import logging
 import logging.config
+from typing import Union, AsyncGenerator
 
 # Get logging configurations
 logging.config.fileConfig('logging.conf')
@@ -14,7 +15,6 @@ from database.ia_filterdb import Media
 from database.users_chats_db import db
 from info import SESSION, API_ID, API_HASH, BOT_TOKEN, LOG_STR
 from utils import temp
-from typing import Union, AsyncGenerator
 
 # Monkey-patch get_peer_type for newer Pyrogram behavior
 def get_peer_type_new(peer_id: int) -> str:
@@ -60,20 +60,24 @@ class Bot(Client):
         await super().stop()
         logging.info("Bot stopped. Bye.")
 
-    # Keep this for bot internal iteration but *do not use for fetching history* in case of Bot
     async def iter_messages(
         self,
         chat_id: Union[int, str],
         limit: int,
         offset_id: int = 0,
     ) -> AsyncGenerator[types.Message, None]:
+        """
+        Internal bot method to iterate messages.
+        DO NOT use this for fetching history because bots cannot call get_chat_history.
+        Use the userbot client for that instead.
+        """
         async for message in self.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
             yield message
 
 
-# Create a separate user client for methods bots cannot use like get_chat_history
+# User client for user-only methods like get_chat_history
 userbot = Client(
-    "user_session",  # This is the session name/file for the user account
+    "user_session",  # user session file must be created beforehand
     api_id=API_ID,
     api_hash=API_HASH,
     workers=50,
@@ -82,7 +86,7 @@ userbot = Client(
 
 async def start_userbot():
     await userbot.start()
-    logging.info("Userbot started for fetching history and other user-only methods.")
+    logging.info("Userbot started for fetching history and user-only methods.")
 
 
 async def stop_userbot():
@@ -90,28 +94,27 @@ async def stop_userbot():
     logging.info("Userbot stopped.")
 
 
-# Example helper function to fetch messages using userbot
 async def get_history_with_userbot(chat_id: Union[int, str], limit: int, offset_id: int = 0):
     messages = []
-    async for msg in userbot.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
-        messages.append(msg)
+    try:
+        async for msg in userbot.get_chat_history(chat_id, limit=limit, offset_id=offset_id):
+            messages.append(msg)
+    except Exception as e:
+        logging.error(f"Failed to get history with userbot: {e}")
     return messages
 
 
-# Start both clients and run bot
 bot_app = Bot()
 
 
 async def main():
     await bot_app.start()
     await start_userbot()
-    # Now both bot and userbot are running
 
-    # Example: fetch history with userbot (you can replace this with your code)
-    # msgs = await get_history_with_userbot(chat_id=12345, limit=10)
-    # print(f"Fetched {len(msgs)} messages from userbot")
+    # Example usage:
+    # msgs = await get_history_with_userbot(chat_id=123456789, limit=10)
+    # logging.info(f"Fetched {len(msgs)} messages from userbot")
 
-    # Run your bot idle here or other logic
     await bot_app.idle()
 
     await stop_userbot()
